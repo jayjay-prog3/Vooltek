@@ -58,7 +58,6 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    /* Modal for future app loading */
     #appModal {
         display: none;
         position: fixed;
@@ -104,7 +103,6 @@
     </div>
 </div>
 
-<!-- Modal for future app loading -->
 <div id="appModal">
     <iframe id="appFrame"></iframe>
     <button id="closeModal">Close App</button>
@@ -142,12 +140,12 @@
         document.getElementById('userBio').textContent = bio;
     });
 
-    // Placeholder app click opens modal (future GitHub raw app will load here)
+    // Placeholder app modal
     const modal = document.getElementById('appModal');
     const iframe = document.getElementById('appFrame');
+
     document.getElementById('placeholderApp').addEventListener('click', () => {
         modal.style.display = 'flex';
-        // For now, just a placeholder page
         iframe.srcdoc = '<h1 style="color:white;text-align:center;">App will load here</h1>';
     });
 
