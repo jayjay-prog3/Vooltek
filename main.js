@@ -1,4 +1,6 @@
 // Get the canvas and create Babylon engine
+const JUMP_IMPULSE = 0.35; // Upward impulse for jumping
+
 const canvas = document.getElementById("gameCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 const scene = new BABYLON.Scene(engine);
@@ -7,7 +9,7 @@ const scene = new BABYLON.Scene(engine);
 const camera = new BABYLON.FreeCamera("playerCamera", new BABYLON.Vector3(0, 5, -10), scene);
 camera.attachControl(canvas, true);            // mouse look
 camera.speed = 0.5;                             // movement speed
-camera.angularSensibility = 100;               // mouse sensitivity
+camera.angularSensibility = 750;               // mouse sensitivity
 camera.applyGravity = true;                     // simulate gravity
 camera.ellipsoid = new BABYLON.Vector3(1, 2, 1); // player size
 camera.checkCollisions = true;
@@ -25,7 +27,38 @@ scene.collisionsEnabled = true;
 //jumping
 window.addEventListener("keydown", (e) => {
     if (e.code === "Space" && camera.isOnGround()) {
-        camera.cameraDirection.y = 0.35; //add upward impulse
+        camera.cameraDirection.y = JUMP_IMPULSE;
+    }
+});
+
+//pointer lock
+canvas.addEventListener("click", () => {
+    canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
+    if (canvas.requestPointerLock) canvas.requestPointerLock(); 
+});
+
+document.addEventListener("pointerlockchange", lockChangeAlert, false);
+document.addEventListener("mozpointerlockchange", lockChangeAlert, false);
+document.addEventListener("webkitpointerlockchange", lockChangeAlert, false);
+
+function lockChangeAlert() {
+    if (document.pointerLockElement === canvas ||
+        document.mozPointerLockElement === canvas ||
+        document.webkitPointerLockElement === canvas) {
+        console.log("The pointer is now locked!");
+    } else {
+        console.log("The pointer is now unlocked!");
+    }
+}
+
+//toggle
+window.addEventListener("keydown", (e) => {
+    if (e.code === "KeyV") {
+        if (document.pointerLockElement === canvas) {
+            document.exitPointerLock();
+        } else {
+            canvas.requestPointerLock();
+        }
     }
 });
 
@@ -35,11 +68,6 @@ const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0
 // --- GROUND ---
 const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 50, height: 50 }, scene);
 ground.checkCollisions = true;
-
-// Enable collisions for camera
-scene.gravity = new BABYLON.Vector3(0, -0.98, 0);
-scene.collisionsEnabled = true;
-camera.checkCollisions = true;
 
 // --- ASSETS MANAGER (loading screen logic) ---
 const assetsManager = new BABYLON.AssetsManager(scene);
