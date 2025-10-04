@@ -24,10 +24,27 @@ camera.keysRight.push(68); // D
 scene.gravity = new BABYLON.Vector3(0, -0.98, 0);
 scene.collisionsEnabled = true;
 
-//jumping
+//jump var
+let verticalVelocity = 0;
+const JUMP_IMPULSE = 0.35; // Upward impulse for jumping
+const GRAVITY = -0.02;     // Gravity effect
+
+//jump logic
 window.addEventListener("keydown", (e) => {
     if (e.code === "Space" && camera.isOnGround()) {
-        camera.cameraDirection.y = JUMP_IMPULSE;
+        verticalVelocity = JUMP_IMPULSE;
+    }
+});
+
+//update camera position each frame
+scene.OnBeforeRenderObservable.add(() => {
+    verticalVelocity += Gravity; // Apply gravity
+    camera.position.y += verticalVelocity; // move cam vertically
+
+    //ground collision
+    if (camera.position.y < 5) { // ground Y and cam height
+        camera.position.y = 5;
+        verticalVelocity = 0;
     }
 });
 
