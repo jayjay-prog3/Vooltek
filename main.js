@@ -7,9 +7,27 @@ const scene = new BABYLON.Scene(engine);
 const camera = new BABYLON.FreeCamera("playerCamera", new BABYLON.Vector3(0, 5, -10), scene);
 camera.attachControl(canvas, true);            // mouse look
 camera.speed = 0.5;                             // movement speed
-camera.angularSensibility = 500;               // mouse sensitivity
+camera.angularSensibility = 100;               // mouse sensitivity
 camera.applyGravity = true;                     // simulate gravity
 camera.ellipsoid = new BABYLON.Vector3(1, 2, 1); // player size
+camera.checkCollisions = true;
+
+// set wasd movement
+camera.keysUp.push(87);    // W
+camera.keysDown.push(83);  // S
+camera.keysLeft.push(65);  // A
+camera.keysRight.push(68); // D
+
+//ground collision and gravity
+scene.gravity = new BABYLON.Vector3(0, -0.98, 0);
+scene.collisionsEnabled = true;
+
+//jumping
+window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && camera.isOnGround()) {
+        camera.cameraDirection.y = 0.35; //add upward impulse
+    }
+});
 
 // --- LIGHT ---
 const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
