@@ -6,8 +6,8 @@ const scene = new BABYLON.Scene(engine);
 const camera = new BABYLON.FreeCamera("playerCamera", new BABYLON.Vector3(0, 5, -10), scene);
 camera.attachControl(canvas, true);
 camera.speed = 0.5;
-camera.angularSensibility = 750;
-camera.applyGravity = false; // We'll handle gravity manually
+camera.angularSensibility = 1000; // tweak sensitivity if needed
+camera.applyGravity = false; // manual gravity
 camera.ellipsoid = new BABYLON.Vector3(1, 2, 1);
 camera.checkCollisions = true;
 
@@ -18,36 +18,23 @@ const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0
 const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 100, height: 100 }, scene);
 ground.checkCollisions = true;
 
-// WASD
+// --- MOVEMENT ---
 camera.keysUp.push(87);    
 camera.keysDown.push(83);  
 camera.keysLeft.push(65);  
 camera.keysRight.push(68); 
 
-// Gravity + jump variables
+// --- GRAVITY + JUMP ---
 let verticalVelocity = 0;
-const JUMP_FORCE = 0.35; // jump power
-const GRAVITY = -0.02; // gravity strength
-const GROUND_Y = 2; // cam height off ground
+const JUMP_FORCE = 0.35;
+const GRAVITY = -0.02;
+const GROUND_Y = 4; // camera Y when standing
 
-// --- JUMP ---
-window.addEventListener("keydown", (e) => {
-    if (e.code === "Space" && camera.position.y <= GROUND_Y + 0.1) {
-        verticalVelocity = JUMP_FORCE;
-    }
-});
+let jumpPressed = false;
 
-//update each frame
-scene.onBeforeRenderObservable.add(() => {
-    verticalVelocity += GRAVITY;
-    camera.position.y += verticalVelocity;
-
-    //stop and ground
-    if (camera.position.y < GROUND_Y) {
-        camera.position.y = GROUND_Y;
-        verticalVelocity = 0;
-    }
-});
+// Track jump hold
+window.addEventListener("keydown", (e) => { if(e.code === "Space") jumpPressed = true; });
+window.addEventListener("keyup", (e) => { if(e.code === "Space") jumpPressed = false; });
 
 // --- POINTER LOCK ---
 canvas.addEventListener("click", () => {
@@ -55,20 +42,15 @@ canvas.addEventListener("click", () => {
     if (canvas.requestPointerLock) canvas.requestPointerLock();
 });
 
-document.addEventListener("pointerlockchange", lockChangeAlert, false);
-
-function lockChangeAlert() {
+document.addEventListener("pointerlockchange", () => {
     console.log(document.pointerLockElement === canvas ? "Pointer locked!" : "Pointer unlocked!");
-}
+});
 
 // Toggle pointer lock with 'V'
 window.addEventListener("keydown", (e) => {
-    if (e.code === "KeyV") {
-        if (document.pointerLockElement === canvas) {
-            document.exitPointerLock();
-        } else {
-            canvas.requestPointerLock();
-        }
+    if(e.code === "KeyV"){
+        if(document.pointerLockElement === canvas) document.exitPointerLock();
+        else canvas.requestPointerLock();
     }
 });
 
@@ -76,24 +58,38 @@ window.addEventListener("keydown", (e) => {
 const totalAssets = 5;
 let loadedAssets = 0;
 
-for (let i = 0; i < totalAssets; i++) {
-    setTimeout(() => {
-        const box = BABYLON.MeshBuilder.CreateBox(`box${i}`, { size: 1 }, scene);
-        box.position = new BABYLON.Vector3(Math.random() * 10 - 5, 1, Math.random() * 10 - 5);
+for (let i=0; i<totalAssets; i++){
+    setTimeout(()=>{
+        const box = BABYLON.MeshBuilder.CreateBox(`box${i}`, { size:1 }, scene);
+        box.position = new BABYLON.Vector3(Math.random()*10-5, 1, Math.random()*10-5);
         box.checkCollisions = true;
 
         loadedAssets++;
-        const progress = (loadedAssets / totalAssets) * 100;
-        document.getElementById("progressBar").style.width = progress + "%";
+        document.getElementById("progressBar").style.width = (loadedAssets/totalAssets*100) + "%";
 
-        if (loadedAssets === totalAssets) {
+        if(loadedAssets === totalAssets){
             document.getElementById("loadingScreen").style.display = "none";
         }
-    }, i * 300);
+    }, i*300);
 }
 
 // --- RENDER LOOP ---
 engine.runRenderLoop(() => {
+    // Jump hold logic
+    if(jumpPressed && camera.position.y <= GROUND_Y + 0.1){
+        verticalVelocity = JUMP_FORCE;
+    }
+
+    // Gravity
+    verticalVelocity += GRAVITY;
+    camera.position.y += verticalVelocity;
+
+    // Ground collision
+    if(camera.position.y < GROUND_Y){
+        camera.position.y = GROUND_Y;
+        verticalVelocity = 0;
+    }
+
     scene.render();
 });
 
