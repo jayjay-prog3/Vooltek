@@ -5,8 +5,9 @@ const scene = new BABYLON.Scene(engine);
 // --- CAMERA ---
 const camera = new BABYLON.FreeCamera("playerCamera", new BABYLON.Vector3(0, 5, -10), scene);
 camera.attachControl(canvas, true);
-camera.speed = 0.5;
+camera.speed = 0.45; // movement speed
 camera.angularSensibility = 1000; // tweak sensitivity if needed
+camera.inertia = 0; //instant stop when mouse stops like roblox
 camera.applyGravity = false; // manual gravity
 camera.ellipsoid = new BABYLON.Vector3(1, 2, 1);
 camera.checkCollisions = true;
@@ -27,7 +28,7 @@ camera.keysRight.push(68);
 // --- GRAVITY + JUMP ---
 let verticalVelocity = 0;
 const JUMP_FORCE = 0.35;
-const GRAVITY = -0.02;
+const GRAVITY = -0.03;
 const GROUND_Y = 4; // camera Y when standing
 
 let jumpPressed = false;
