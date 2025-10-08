@@ -3,16 +3,7 @@ const canvas = document.getElementById("gameCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 const scene = new BABYLON.Scene(engine);
 
-// --- CAMERA ---
-const camera = new BABYLON.ArcRotateCamera("playerCamera", Math.PI / 2, Math.PI / 3, 5, BABYLON.Vector3.Zero(), scene);
-camera.attachControl(canvas, true);
-camera.lowerRadiusLimit = 0.1; // first-person
-camera.upperRadiusLimit = 15;  // max third-person
-camera.wheelDeltaPercentage = 0.01;
-camera.checkCollisions = true;
-camera.collisionRadius = new BABYLON.Vector3(1, 2, 1);
-
-// --- PLAYER BODY ---
+// --- PLAYER ---
 const playerHeight = 2.5;
 const playerWidth = 1;
 const playerMesh = BABYLON.MeshBuilder.CreateBox("player", {
@@ -20,19 +11,34 @@ const playerMesh = BABYLON.MeshBuilder.CreateBox("player", {
     width: playerWidth,
     depth: playerWidth
 }, scene);
-playerMesh.position = new BABYLON.Vector3(0, playerHeight/2, 0);
+playerMesh.position = new BABYLON.Vector3(0, playerHeight / 2, 0);
 playerMesh.checkCollisions = true;
 
-// --- CAMERA PARENT ---
-camera.lockedTarget = playerMesh;
-camera.radius = 5; // default third-person distance
-let zoomDistance = camera.radius;
+// --- CAMERA ---
+const camera = new BABYLON.FreeCamera("playerCamera", playerMesh.position.add(new BABYLON.Vector3(0, playerHeight - 0.5, 0)), scene);
+camera.attachControl(canvas, true);
+camera.speed = 0;
+camera.inertia = 0;
+camera.angularSensibility = 500;
+camera.applyGravity = false;
+camera.ellipsoid = new BABYLON.Vector3(1, 2, 1);
+camera.checkCollisions = true;
+
+// Camera offset
+let zoomDistance = 5; // default third-person
+const MIN_ZOOM = 0;   // first-person
+const MAX_ZOOM = 15;  // max third-person
+
+window.addEventListener("wheel", (e) => {
+    zoomDistance += e.deltaY * 0.01;
+    zoomDistance = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomDistance));
+});
 
 // --- LIGHT ---
-const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
+const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0,1,0), scene);
 
 // --- SKYBOX ---
-const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 1000.0 }, scene);
+const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 1000 }, scene);
 const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
 skyboxMaterial.backFaceCulling = false;
 skyboxMaterial.disableLighting = true;
@@ -50,13 +56,13 @@ ground.checkCollisions = true;
 const keysDown = {};
 window.addEventListener("keydown", (e) => { keysDown[e.key.toLowerCase()] = true; });
 window.addEventListener("keyup", (e) => { keysDown[e.key.toLowerCase()] = false; });
-
 const moveSpeed = 0.15;
 
 // --- GRAVITY + JUMP ---
 let verticalVelocity = 0;
 const JUMP_FORCE = 0.35;
 const GRAVITY = -0.02;
+const GROUND_Y = playerHeight / 2;
 let jumpPressed = false;
 
 window.addEventListener("keydown", (e) => { if(e.code === "Space") jumpPressed = true; });
@@ -80,7 +86,6 @@ window.addEventListener("keydown", (e) => {
 // --- FAKE LOADING SCREEN ---
 const totalAssets = 5;
 let loadedAssets = 0;
-
 for(let i=0; i<totalAssets; i++){
     setTimeout(() => {
         const box = BABYLON.MeshBuilder.CreateBox(`box${i}`, { size:1 }, scene);
@@ -89,7 +94,6 @@ for(let i=0; i<totalAssets; i++){
 
         loadedAssets++;
         document.getElementById("progressBar").style.width = (loadedAssets/totalAssets*100) + "%";
-
         if(loadedAssets === totalAssets){
             document.getElementById("loadingScreen").style.display = "none";
         }
@@ -98,10 +102,11 @@ for(let i=0; i<totalAssets; i++){
 
 // --- RENDER LOOP ---
 engine.runRenderLoop(() => {
-    // Movement relative to camera
-    const forward = new BABYLON.Vector3(Math.sin(camera.alpha), 0, Math.cos(camera.alpha));
-    const right = new BABYLON.Vector3(Math.sin(camera.alpha + Math.PI/2), 0, Math.cos(camera.alpha + Math.PI/2));
     let moveVec = BABYLON.Vector3.Zero();
+
+    // Calculate movement relative to camera
+    const forward = new BABYLON.Vector3(Math.sin(camera.rotation.y), 0, Math.cos(camera.rotation.y));
+    const right = new BABYLON.Vector3(Math.sin(camera.rotation.y + Math.PI/2), 0, Math.cos(camera.rotation.y + Math.PI/2));
 
     if(keysDown['w']) moveVec.addInPlace(forward);
     if(keysDown['s']) moveVec.subtractInPlace(forward);
@@ -111,37 +116,44 @@ engine.runRenderLoop(() => {
     if(moveVec.length() > 0){
         moveVec.normalize();
         moveVec.scaleInPlace(moveSpeed);
-        playerMesh.moveWithCollisions(moveVec);
 
-        // Smooth rotation toward movement
-        const targetRotation = Math.atan2(moveVec.x, moveVec.z);
-        const currentRotation = playerMesh.rotation.y;
-        playerMesh.rotation.y = currentRotation + (targetRotation - currentRotation) * 0.2;
+        // Rotate player toward movement direction
+        const desiredRotationY = Math.atan2(moveVec.x, moveVec.z);
+        playerMesh.rotation.y = BABYLON.Scalar.LerpAngle(playerMesh.rotation.y, desiredRotationY, 0.3);
+
+        playerMesh.moveWithCollisions(moveVec);
     }
 
-    // Jump & gravity
-    if(jumpPressed && playerMesh.position.y <= playerHeight/2 + 0.01) verticalVelocity = JUMP_FORCE;
+    // Jump + gravity
+    if(jumpPressed && playerMesh.position.y <= GROUND_Y + 0.01) verticalVelocity = JUMP_FORCE;
     verticalVelocity += GRAVITY;
     playerMesh.moveWithCollisions(new BABYLON.Vector3(0, verticalVelocity, 0));
-    if(playerMesh.position.y < playerHeight/2){
-        playerMesh.position.y = playerHeight/2;
+    if(playerMesh.position.y < GROUND_Y){
+        playerMesh.position.y = GROUND_Y;
         verticalVelocity = 0;
     }
 
-    // First-person check
-    if(zoomDistance <= 0.1){
-        camera.radius = 0.01; // inside head
+    // --- CAMERA ---
+    const eyeLevel = new BABYLON.Vector3(0, playerHeight - 0.5, 0);
+
+    if(zoomDistance <= MIN_ZOOM + 0.01){
+        // FIRST PERSON
+        camera.position = playerMesh.position.add(eyeLevel);
+        playerMesh.isVisible = false;
     } else {
-        camera.radius = zoomDistance;
+        // THIRD PERSON (locked-axis behind player)
+        playerMesh.isVisible = true;
+        const desiredPos = playerMesh.position
+            .add(eyeLevel)
+            .add(new BABYLON.Vector3(
+                Math.sin(playerMesh.rotation.y) * -zoomDistance,
+                0,
+                Math.cos(playerMesh.rotation.y) * -zoomDistance
+            ));
+        camera.position = BABYLON.Vector3.Lerp(camera.position, desiredPos, 0.2);
     }
 
     scene.render();
-});
-
-// --- CAMERA ZOOM ---
-window.addEventListener("wheel", (e) => {
-    zoomDistance += e.deltaY*0.01;
-    zoomDistance = Math.max(0, Math.min(15, zoomDistance));
 });
 
 // --- RESIZE ---
