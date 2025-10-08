@@ -156,5 +156,7 @@ engine.runRenderLoop(() => {
     scene.render();
 });
 
+
 // --- RESIZE ---
 window.addEventListener("resize", () => engine.resize());
+//end
